@@ -2,78 +2,81 @@
 'use strict'/*global angular */
 angular.module('ngSails', ['ng']);
 
-/*jslint sloppy:true*/
-/*global angular, io */
-angular.module('ngSails').provider('$sails', function () {
-    var provider = this,
-        httpVerbs = ['get', 'post', 'put', 'delete'],
-        eventNames = ['on', 'once'];
+(function (angular, io) {
+    'use strict'/*global angular */
+    angular.module('ngSails', ['ng']);
 
-    this.url = undefined;
-    this.interceptors = [];
-    this.responseHandler = undefined;
+    /*jslint sloppy:true*/
+    /*global angular, io */
+    angular.module('ngSails').provider('$sails', function () {
+        var provider = this,
+            httpVerbs = ['get', 'post', 'put', 'delete'],
+            eventNames = ['on', 'once'];
 
-    this.$get = ['$q', '$timeout', function ($q, $timeout) {
-        var socket = io.connect(provider.url),
-            defer = function () {
-                var deferred = $q.defer(),
-                    promise = deferred.promise;
+        this.url = undefined;
+        this.interceptors = [];
 
-                promise.success = function (fn) {
-                    promise.then(fn);
-                    return promise;
-                };
+        this.$get = ['$q', '$timeout', function ($q, $timeout) {
+            var socket = io.connect(provider.url),
+                defer = function () {
+                    var deferred = $q.defer(),
+                        promise = deferred.promise;
 
-                promise.error = function (fn) {
-                    promise.then(null, fn);
-                    return promise;
-                };
+                    promise.success = function (fn) {
+                        promise.then(fn);
+                        return promise;
+                    };
 
-                return deferred;
-            },
-            resolveOrReject = this.responseHandler || function (deferred, data) {
-                // Make sure what is passed is an object that has a status that is a number and if that status is no 2xx, reject.
-                if (data && angular.isObject(data) && data.statusCode && !isNaN(data.statusCode) && Math.floor(data.statusCode / 100) !== 2) {
-                    deferred.reject(data);
-                } else {
-                    deferred.resolve(data);
-                }
-            },
-            angularify = function (cb, data) {
-                $timeout(function () {
-                    cb(data);
-                });
-            },
-            promisify = function (methodName) {
-                socket['legacy_' + methodName] = socket[methodName];
-                socket[methodName] = function (url, data, cb) {
-                    var deferred = defer();
-                    if (cb === undefined && angular.isFunction(data)) {
-                        cb = data;
-                        data = null;
+                    promise.error = function (fn) {
+                        promise.then(null, fn);
+                        return promise;
+                    };
+
+                    return deferred;
+                },
+                resolveOrReject = function (deferred, data) {
+                    // Make sure what is passed is an object that has a status and if that status is no 2xx, reject.
+                    if (data && angular.isObject(data) && data.statusCode && Math.floor(data.statusCode / 100) !== 2) {
+                        deferred.reject(data.body);
+                    } else {
+                        deferred.resolve(data.body);
                     }
-                    deferred.promise.then(cb);
-                    socket['legacy_' + methodName](url, data, function (result) {
-                        resolveOrReject(deferred, result);
+                },
+                angularify = function (cb, data) {
+                    $timeout(function () {
+                        cb(data);
                     });
-                    return deferred.promise;
-                };
-            },
-            wrapEvent = function (eventName) {
-                socket['legacy_' + eventName] = socket[eventName];
-                socket[eventName] = function (event, cb) {
-                    if (cb !== null && angular.isFunction(cb)) {
-                        socket['legacy_' + eventName](event, function (result) {
-                            angularify(cb, result);
+                },
+                promisify = function (methodName) {
+                    socket['legacy_' + methodName] = socket[methodName];
+                    socket[methodName] = function (url, data, cb) {
+                        var deferred = defer();
+                        if (cb === undefined && angular.isFunction(data)) {
+                            cb = data;
+                            data = null;
+                        }
+                        deferred.promise.then(cb);
+                        socket['legacy_' + methodName](url, data, function (result, infos) {
+                            resolveOrReject(deferred, infos);
                         });
-                    }
+                        return deferred.promise;
+                    };
+                },
+                wrapEvent = function (eventName) {
+                    socket['legacy_' + eventName] = socket[eventName];
+                    socket[eventName] = function (event, cb) {
+                        if (cb !== null && angular.isFunction(cb)) {
+                            socket['legacy_' + eventName](event, function (result, infos) {
+                                angularify(cb, infos);
+                            });
+                        }
+                    };
                 };
-            };
 
-        angular.forEach(httpVerbs, promisify);
-        angular.forEach(eventNames, wrapEvent);
+            angular.forEach(httpVerbs, promisify);
+            angular.forEach(eventNames, wrapEvent);
 
-        return socket;
-    }];
-});
-}(angular, io));
+            return socket;
+        }];
+    });
+}(angular, io));}(angular, io));
