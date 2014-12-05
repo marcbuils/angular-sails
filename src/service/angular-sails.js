@@ -29,7 +29,7 @@ angular.module('ngSails').provider('$sails', function () {
             },
             resolveOrReject = this.responseHandler || function (deferred, data) {
                 // Make sure what is passed is an object that has a status that is a number and if that status is no 2xx, reject.
-                if (data && angular.isObject(data) && data.status && !isNaN(data.status) && Math.floor(data.status / 100) !== 2) {
+                if (data && angular.isObject(data) && data.statusCode && !isNaN(data.statusCode) && Math.floor(data.statusCode / 100) !== 2) {
                     deferred.reject(data);
                 } else {
                     deferred.resolve(data);
