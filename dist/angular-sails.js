@@ -66,8 +66,8 @@ angular.module('ngSails', ['ng']);
                     socket['legacy_' + eventName] = socket[eventName];
                     socket[eventName] = function (event, cb) {
                         if (cb !== null && angular.isFunction(cb)) {
-                            socket['legacy_' + eventName](event, function (result, infos) {
-                                angularify(cb, infos);
+                            socket['legacy_' + eventName](event, function (result) {
+                                angularify(cb, result);
                             });
                         }
                     };
