@@ -52,3 +52,5 @@ npm-debug.log
 node_modules
 
 .tern-project
+.idea
+bower_components
